@@ -22,19 +22,6 @@
 namespace Wasm {
 namespace Common {
 
-// Node metadata
-constexpr StringView WholeNodeKey = ".";
-
-constexpr StringView kUpstreamMetadataIdKey =
-    "envoy.wasm.metadata_exchange.upstream_id";
-constexpr StringView kUpstreamMetadataKey =
-    "envoy.wasm.metadata_exchange.upstream";
-
-constexpr StringView kDownstreamMetadataIdKey =
-    "envoy.wasm.metadata_exchange.downstream_id";
-constexpr StringView kDownstreamMetadataKey =
-    "envoy.wasm.metadata_exchange.downstream";
-
 // Header keys
 constexpr StringView kAuthorityHeaderKey = ":authority";
 constexpr StringView kMethodHeaderKey = ":method";
