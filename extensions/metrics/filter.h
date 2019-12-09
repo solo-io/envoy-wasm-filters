@@ -28,34 +28,22 @@ const std::string default_stat_prefix = "wasm";
 #define CONFIG_DEFAULT(name) \
   config_->name().empty() ? default_##name : config_->name()
 
-#define STD_WASM_STATS(FIELD_FUNC)     \
+#define STD_ISTIO_DIMENSIONS(FIELD_FUNC)     \
   FIELD_FUNC(destination_service)            \
   FIELD_FUNC(destination_port)               \
   FIELD_FUNC(request_protocol)               \
   FIELD_FUNC(response_code)                  \
   FIELD_FUNC(response_flags)                 \
 
+
 struct WasmStats {
+
 #define DEFINE_FIELD(name) std::string(name);
-  STD_WASM_STATS(DEFINE_FIELD)
+  STD_ISTIO_DIMENSIONS(DEFINE_FIELD)
 #undef DEFINE_FIELD
 
   // utility fields
   bool outbound = false;
-
-  // Ordered dimension list is used by the metrics API.
-  static std::vector<MetricTag> metricTags() {
-#define DEFINE_METRIC(name) {#name, MetricTag::TagType::String},
-    return std::vector<MetricTag>{STD_WASM_STATS(DEFINE_METRIC)};
-#undef DEFINE_METRIC
-  }
-
-  // values is used on the datapath, only when new dimensions are found.
-  std::vector<std::string> values() {
-#define VALUES(name) name,
-    return std::vector<std::string>{STD_WASM_STATS(VALUES)};
-#undef VALUES
-  }
 
   // maps from request context to dimensions.
   // local node derived dimensions are already filled in.
@@ -89,14 +77,21 @@ using ValueExtractorFn =
 // SimpleStat record a pre-resolved metric based on the values function.
 class SimpleStat {
  public:
-  SimpleStat(uint32_t metric_id, ValueExtractorFn value_fn)
-      : metric_id_(metric_id), value_fn_(value_fn){};
+  SimpleStat(uint32_t metric_id, MetricType metric_type, ValueExtractorFn value_fn)
+      : metric_id_(metric_id), metric_type_(metric_type), value_fn_(value_fn){};
 
   inline void record(const ::Wasm::Common::RequestInfo& request_info) {
-    recordMetric(metric_id_, value_fn_(request_info));
+    switch (metric_type_) {
+      case MetricType::Counter:
+        incrementMetric(metric_id_, value_fn_(request_info));
+      default:
+        recordMetric(metric_id_, value_fn_(request_info));
+    }
   };
 
   uint32_t metric_id_;
+
+  MetricType metric_type_;
 
  private:
   ValueExtractorFn value_fn_;
@@ -106,12 +101,10 @@ class SimpleStat {
 class StatGen {
  public:
   explicit StatGen(std::string name, MetricType metric_type,
-                   ValueExtractorFn value_fn, std::string field_separator,
-                   std::string value_separator)
+                   ValueExtractorFn value_fn)
       : name_(name),
         value_fn_(value_fn),
-        metric_(metric_type, name, WasmStats::metricTags(),
-                field_separator, value_separator){};
+        metric_(metric_type, name){};
 
   StatGen() = delete;
   inline StringView name() const { return name_; };
@@ -119,7 +112,7 @@ class StatGen {
   // Resolve metric based on provided dimension values.
   SimpleStat resolve(std::vector<std::string>& vals) {
     auto metric_id = metric_.resolveWithFields(vals);
-    return SimpleStat(metric_id, value_fn_);
+    return SimpleStat(metric_id, metric_.type, value_fn_);
   };
 
  private:

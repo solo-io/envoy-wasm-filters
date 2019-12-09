@@ -1,9 +1,11 @@
 #include "filter.h"
 
 const std::string requests_total = "requests_total";
-const std:: string request_duration_milliseconds = "request_duration_milliseconds";
-const std:: string request_bytes = "request_bytes";
-const std:: string response_bytes = "response_bytes";
+const std::string request_duration_milliseconds = "request_duration_milliseconds";
+const std::string request_bytes = "request_bytes";
+const std::string response_bytes = "response_bytes";
+const std::string extauth_rejected_requests = "extauth_rejected_requests";
+const std::string ratelimited_requests = "ratelimited_requests";
 
 bool AddHeaderRootContext::onConfigure(size_t) { 
   auto conf = getConfiguration();
@@ -29,43 +31,57 @@ bool AddHeaderRootContext::onConfigure(size_t) {
   auto value_separator = CONFIG_DEFAULT(value_separator);
   auto stat_prefix = CONFIG_DEFAULT(stat_prefix);
 
+
+  stat_prefix.insert(0, "_");
+  stat_prefix.append("_");
+
   stats_ = std::vector<StatGen>{
     StatGen(
         stat_prefix + requests_total, MetricType::Counter,
-        [](const Wasm::Common::RequestInfo&) -> uint64_t { return 1; },
-        field_separator, value_separator),
+        [](const Wasm::Common::RequestInfo&) -> uint64_t { return 1; }),
+    StatGen(
+        stat_prefix + extauth_rejected_requests, MetricType::Counter,
+        [](const Wasm::Common::RequestInfo& request_info) -> uint64_t {
+          if(request_info.response_flag == "UAEX") {
+            return 1;
+          }
+          return 0; 
+        }),
+    StatGen(
+        stat_prefix + ratelimited_requests, MetricType::Counter,
+        [](const Wasm::Common::RequestInfo& request_info) -> uint64_t {
+          if(request_info.response_flag == "RL") {
+            return 1;
+          }
+          return 0; 
+        }),
     StatGen(
         stat_prefix + request_duration_milliseconds,
         MetricType::Histogram,
         [](const Wasm::Common::RequestInfo& request_info) -> uint64_t {
           return (request_info.end_timestamp - request_info.start_timestamp) /
                   1000000;
-        },
-        field_separator, value_separator),
+        }),
     StatGen(
         stat_prefix + request_bytes, MetricType::Histogram,
         [](const Wasm::Common::RequestInfo& request_info) -> uint64_t {
           return request_info.request_size;
-        },
-        field_separator, value_separator),
+        }),
     StatGen(
         stat_prefix + response_bytes, MetricType::Histogram,
         [](const Wasm::Common::RequestInfo& request_info) -> uint64_t {
           return request_info.response_size;
-        },
-        field_separator, value_separator)};
-
+        })
+  };
   return true; 
 }
 
 void AddHeaderRootContext::report(const Wasm::Common::RequestInfo& request_info) {
   wasm_stats_.map(request_info);
-  auto values = wasm_stats_.values();
-  std::vector<SimpleStat> stats;
+  std::vector<std::string> values;
   for (auto& statgen : stats_) {
     auto stat = statgen.resolve(values);
     stat.record(request_info);
-    stats.push_back(stat);
   }
 }
 
