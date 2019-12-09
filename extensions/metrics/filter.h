@@ -29,20 +29,7 @@ const std::string default_stat_prefix = "wasm";
   config_->name().empty() ? default_##name : config_->name()
 
 #define STD_WASM_STATS(FIELD_FUNC)     \
-  FIELD_FUNC(reporter)                       \
-  FIELD_FUNC(source_workload)                \
-  FIELD_FUNC(source_workload_namespace)      \
-  FIELD_FUNC(source_principal)               \
-  FIELD_FUNC(source_app)                     \
-  FIELD_FUNC(source_version)                 \
-  FIELD_FUNC(destination_workload)           \
-  FIELD_FUNC(destination_workload_namespace) \
-  FIELD_FUNC(destination_principal)          \
-  FIELD_FUNC(destination_app)                \
-  FIELD_FUNC(destination_version)            \
   FIELD_FUNC(destination_service)            \
-  FIELD_FUNC(destination_service_name)       \
-  FIELD_FUNC(destination_service_namespace)  \
   FIELD_FUNC(destination_port)               \
   FIELD_FUNC(request_protocol)               \
   FIELD_FUNC(response_code)                  \
@@ -70,28 +57,15 @@ struct WasmStats {
 #undef VALUES
   }
 
-  void setFieldsUnknownIfEmpty() {
-#define SET_IF_EMPTY(name) \
-  if ((name).empty()) {    \
-    (name) = unknown;      \
-  }
-    STD_WASM_STATS(SET_IF_EMPTY)
-#undef SET_IF_EMPTY
-  }
-
   // maps from request context to dimensions.
   // local node derived dimensions are already filled in.
   void map_request(const ::Wasm::Common::RequestInfo& request) {
     destination_service = request.destination_service_host;
-    destination_service_name = request.destination_service_name;
     destination_port = std::to_string(request.destination_port);
 
     request_protocol = request.request_protocol;
     response_code = std::to_string(request.response_code);
     response_flags = request.response_flag;
-
-
-    setFieldsUnknownIfEmpty();
   }
 
  public:
@@ -100,24 +74,12 @@ struct WasmStats {
   // Properties are different based on inbound / outbound.
   void init(bool out_bound) {
     outbound = out_bound;
-    reporter = out_bound ? vSource : vDest;
   }
 
     // maps peer_node and request to dimensions.
   void map(const ::Wasm::Common::RequestInfo& request) {
     map_request(request);
   }
-
-  std::string to_string() const {
-#define TO_STRING(name) "\"", #name, "\":\"", name, "\" ,",
-    std::vector<std::string> stats({"{" STD_WASM_STATS(TO_STRING) "}"});
-    std::ostringstream imploded;
-    std::copy(stats.begin(), stats.end(),
-      std::ostream_iterator<std::string>(imploded, ""));
-    return imploded.str();
-#undef TO_STRING
-  }
-
 };
 
 

@@ -32,25 +32,25 @@ bool AddHeaderRootContext::onConfigure(size_t) {
   stats_ = std::vector<StatGen>{
     StatGen(
         stat_prefix + requests_total, MetricType::Counter,
-        [](const ::Wasm::Common::RequestInfo&) -> uint64_t { return 1; },
+        [](const Wasm::Common::RequestInfo&) -> uint64_t { return 1; },
         field_separator, value_separator),
     StatGen(
         stat_prefix + request_duration_milliseconds,
         MetricType::Histogram,
-        [](const ::Wasm::Common::RequestInfo& request_info) -> uint64_t {
+        [](const Wasm::Common::RequestInfo& request_info) -> uint64_t {
           return (request_info.end_timestamp - request_info.start_timestamp) /
                   1000000;
         },
         field_separator, value_separator),
     StatGen(
         stat_prefix + request_bytes, MetricType::Histogram,
-        [](const ::Wasm::Common::RequestInfo& request_info) -> uint64_t {
+        [](const Wasm::Common::RequestInfo& request_info) -> uint64_t {
           return request_info.request_size;
         },
         field_separator, value_separator),
     StatGen(
         stat_prefix + response_bytes, MetricType::Histogram,
-        [](const ::Wasm::Common::RequestInfo& request_info) -> uint64_t {
+        [](const Wasm::Common::RequestInfo& request_info) -> uint64_t {
           return request_info.response_size;
         },
         field_separator, value_separator)};
@@ -62,9 +62,7 @@ void AddHeaderRootContext::report(const Wasm::Common::RequestInfo& request_info)
   wasm_stats_.map(request_info);
   auto values = wasm_stats_.values();
   std::vector<SimpleStat> stats;
-  LOG_DEBUG("recording stat");
   for (auto& statgen : stats_) {
-    LOG_DEBUG("recording stat");
     auto stat = statgen.resolve(values);
     stat.record(request_info);
     stats.push_back(stat);
