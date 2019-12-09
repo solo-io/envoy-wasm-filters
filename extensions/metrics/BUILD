@@ -18,8 +18,6 @@ cc_binary(
         "filter.h",
         "filter.cc",
     ],
-    # hdrs = [
-    # ],
     additional_linker_inputs = ["@envoy_wasm_api//:jslib"],
     linkopts = [
         "--js-library",

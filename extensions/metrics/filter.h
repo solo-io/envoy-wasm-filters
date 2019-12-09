@@ -4,6 +4,7 @@
 
 #include "google/protobuf/util/json_util.h"
 #include "extensions/metrics/filter.pb.h"
+#include "common/extensions/context.h"
 #include "proxy_wasm_intrinsics.h"
 
 // The following need to be std::strings because the receiver expects a string.
@@ -40,6 +41,8 @@ public:
 private:
 
   AddHeaderRootContext* root_;
+
+  ::Wasm::Common::RequestInfo request_info_;
 };
 static RegisterContextFactory register_AddHeaderContext(CONTEXT_FACTORY(AddHeaderContext),
                                                       ROOT_FACTORY(AddHeaderRootContext),
