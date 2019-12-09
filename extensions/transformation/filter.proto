@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+message Transformation {
+  map<string, Extraction> extractors = 2;
+  map<string, InjaTemplate> headers = 3;
+}
+
+message InjaTemplate { string text = 1; }
+
+message Extraction {
+  oneof source { string header = 1; }
+  // what information to extract. if extraction fails the result is
+  // an empty value.
+  string regex = 2;
+  uint32 subgroup = 3;
+}
+
+message RouteTransformations {
+  Transformation request_transformation = 1;
+  Transformation response_transformation = 2;
+}
+
+message HeaderMatch {
+  string name = 1;
+
+  // Specifies how the header match will be performed to route the request.
+  oneof header_match_specifier {
+    string exact_match = 2;
+    string prefix_match = 3;
+    string suffix_match = 4;
+    bool present_match = 5;
+  }
+}
+
+message Matcher { repeated HeaderMatch header_matchers = 6; }
+
+message TransformationRule {
+  // The route matching parameter. Only when the match is satisfied, the
+  // "requires" field will apply.
+  //
+  // For example: following match will match all requests.
+  //
+  // .. code-block:: yaml
+  //
+  //    match:
+  //      prefix: /
+  //
+  Matcher match = 1;
+  // transformation to perform
+  RouteTransformations route_transformations = 2;
+}
+
+message Config {
+  // Specifies transformations based on the route matches. The first matched
+  // transformation will be applied. If there are overlapped match conditions,
+  // please put the most specific match first.
+  repeated TransformationRule transformations = 1;
+}
