@@ -15,8 +15,8 @@ cc_proto_library(
 cc_binary(
     name = "filter.wasm",
     srcs = [
-        "aws_lambda_wasm_filter.cc",
-        "aws_lambda_wasm_filter.h",
+        "filter.cc",
+        "filter.h",
     ],
     additional_linker_inputs = ["@envoy_wasm_api//:jslib"],
     linkopts = [

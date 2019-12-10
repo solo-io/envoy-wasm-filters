@@ -1,4 +1,4 @@
-#include "aws_authenticator.h"
+#include "extensions/aws_lambda/aws_authenticator.h"
 
 #include <algorithm>
 #include <list>

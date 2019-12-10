@@ -4,12 +4,12 @@
 #include <iostream>
 #include <unordered_map>
 
-#include "aws_authenticator.h"
+#include "extensions/aws_lambda/aws_authenticator.h"
 
 //#include "absl/types/optional.h"
 #include "google/protobuf/util/json_util.h"
 #include "proxy_wasm_intrinsics.h"
-#include "filter.pb.h"
+#include "extensions/aws_lambda/filter.pb.h"
 
 class AwsLambdaFilterRootContext : public RootContext {
 public:
@@ -28,7 +28,8 @@ public:
   void onCreate() override;
   FilterHeadersStatus onRequestHeaders(uint32_t headers) override;
   FilterDataStatus onRequestBody(size_t body_buffer_length, bool end_of_stream) override;
-  FilterHeadersStatus onResponseHeaders(uint32_t headers) override;
+  FilterTrailersStatus onRequestTrailers(uint32_t) override;
+
   void onDone() override;
   void onLog() override;
   void onDelete() override;
@@ -45,7 +46,7 @@ private:
   //absl::optional<std::string> default_body_;
   std::string default_body_;
 
-  unordered_map<string, string> request_headers_;
+  const std::vector<std::pair<std::string, std::string>>* request_headers_;
   AwsAuthenticator aws_authenticator_;
 
   static std::string functionUrlPath(const std::string &name,
