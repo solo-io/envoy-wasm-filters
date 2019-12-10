@@ -12,23 +12,12 @@
 using google::protobuf::util::JsonParseOptions;
 using google::protobuf::util::Status;
 
-
-constexpr StringView Sep = "#@";
-
-// The following need to be std::strings because the receiver expects a string.
-const std::string unknown = "unknown";
-const std::string vSource = "source";
-const std::string vDest = "destination";
-const std::string vDash = "-";
-
-const std::string default_field_separator = ";.;";
-const std::string default_value_separator = "=.=";
 const std::string default_stat_prefix = "wasm";
 
 #define CONFIG_DEFAULT(name) \
   config_->name().empty() ? default_##name : config_->name()
 
-#define STD_ISTIO_DIMENSIONS(FIELD_FUNC)     \
+#define STATS_DIMENSIONS(FIELD_FUNC)     \
   FIELD_FUNC(destination_service)            \
   FIELD_FUNC(destination_port)               \
   FIELD_FUNC(request_protocol)               \
@@ -39,7 +28,7 @@ const std::string default_stat_prefix = "wasm";
 struct WasmStats {
 
 #define DEFINE_FIELD(name) std::string(name);
-  STD_ISTIO_DIMENSIONS(DEFINE_FIELD)
+  STATS_DIMENSIONS(DEFINE_FIELD)
 #undef DEFINE_FIELD
 
   // utility fields
@@ -121,9 +110,9 @@ class StatGen {
   Metric metric_;
 };
 
-class AddHeaderRootContext : public RootContext {
+class StatsRootContext : public RootContext {
 public:
-  explicit AddHeaderRootContext(uint32_t id, StringView root_id) : 
+  explicit StatsRootContext(uint32_t id, StringView root_id) : 
     RootContext(id, root_id), config_(nullptr)  {}
   bool onConfigure(size_t /* configuration_size */) override;
 
@@ -138,10 +127,10 @@ private:
   std::vector<StatGen> stats_;
 };
 
-class AddHeaderContext : public Context {
+class StatsContext : public Context {
 public:
-  explicit AddHeaderContext(uint32_t id, RootContext* root) : 
-    Context(id, root), root_(static_cast<AddHeaderRootContext*>(static_cast<void*>(root))) {}
+  explicit StatsContext(uint32_t id, RootContext* root) : 
+    Context(id, root), root_(static_cast<StatsRootContext*>(static_cast<void*>(root))) {}
 
   FilterHeadersStatus onRequestHeaders(uint32_t headers) override;
   FilterDataStatus onRequestBody(size_t body_buffer_length, bool end_of_stream) override;
@@ -150,10 +139,10 @@ public:
   void onLog() override;
 private:
 
-  AddHeaderRootContext* root_;
+  StatsRootContext* root_;
 
   Wasm::Common::RequestInfo request_info_;
 };
-static RegisterContextFactory register_AddHeaderContext(CONTEXT_FACTORY(AddHeaderContext),
-                                                      ROOT_FACTORY(AddHeaderRootContext),
-                                                      "add_header_root_id");
+static RegisterContextFactory register_StatsContext(CONTEXT_FACTORY(StatsContext),
+                                                      ROOT_FACTORY(StatsRootContext),
+                                                      "stats_root_id");

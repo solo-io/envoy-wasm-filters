@@ -7,7 +7,7 @@ const std::string response_bytes = "response_bytes";
 const std::string extauth_rejected_requests = "extauth_rejected_requests";
 const std::string ratelimited_requests = "ratelimited_requests";
 
-bool AddHeaderRootContext::onConfigure(size_t) { 
+bool StatsRootContext::onConfigure(size_t) { 
   auto conf = getConfiguration();
   Config config;
   
@@ -27,8 +27,6 @@ bool AddHeaderRootContext::onConfigure(size_t) {
 
   wasm_stats_.init(outbound_);
 
-  auto field_separator = CONFIG_DEFAULT(field_separator);
-  auto value_separator = CONFIG_DEFAULT(value_separator);
   auto stat_prefix = CONFIG_DEFAULT(stat_prefix);
 
 
@@ -76,7 +74,7 @@ bool AddHeaderRootContext::onConfigure(size_t) {
   return true; 
 }
 
-void AddHeaderRootContext::report(const Wasm::Common::RequestInfo& request_info) {
+void StatsRootContext::report(const Wasm::Common::RequestInfo& request_info) {
   wasm_stats_.map(request_info);
   std::vector<std::string> values;
   for (auto& statgen : stats_) {
@@ -86,22 +84,22 @@ void AddHeaderRootContext::report(const Wasm::Common::RequestInfo& request_info)
 }
 
 
-FilterHeadersStatus AddHeaderContext::onRequestHeaders(uint32_t) {
+FilterHeadersStatus StatsContext::onRequestHeaders(uint32_t) {
   request_info_.start_timestamp = getCurrentTimeNanoseconds();
   return FilterHeadersStatus::Continue;
 }
 
-FilterDataStatus AddHeaderContext::onRequestBody(size_t body_buffer_length, bool end_of_stream) {
+FilterDataStatus StatsContext::onRequestBody(size_t body_buffer_length, bool end_of_stream) {
   request_info_.request_size += body_buffer_length;
   return FilterDataStatus::Continue;
 }
 
-FilterDataStatus AddHeaderContext::onResponseBody(size_t body_buffer_length, bool end_of_stream) {
+FilterDataStatus StatsContext::onResponseBody(size_t body_buffer_length, bool end_of_stream) {
   request_info_.response_size += body_buffer_length;
   return FilterDataStatus::Continue;
 }
 
-void AddHeaderContext::onLog() { 
+void StatsContext::onLog() { 
     Wasm::Common::populateHTTPRequestInfo(
         root_->outbound_, root_->use_host_header_fallback_, &request_info_);
     root_->report(request_info_);
