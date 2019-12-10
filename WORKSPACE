@@ -89,10 +89,9 @@ new_git_repository(
     build_file = "//bazel/external:json.BUILD"
 )
 
-http_archive(
-    name = "openssl",
-    url = "https://github.com/openssl/openssl/archive/OpenSSL_1_1_0h.tar.gz",
-    sha256 = "f56dd7d81ce8d3e395f83285bd700a1098ed5a4cb0a81ce9522e41e6db7e0389",
-    strip_prefix = "openssl-OpenSSL_1_1_0h",
-    build_file = "//bazel/external:openssl.BUILD",
+new_git_repository(
+    name = "hmac",
+    commit = "5efc450f9dd204059b2f29808deaf2f8239b8129",
+    remote = "https://github.com/ogay/hmac",
+    build_file = "//bazel/external:hmac.BUILD"
 )

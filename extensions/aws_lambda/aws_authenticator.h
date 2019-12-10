@@ -3,9 +3,8 @@
 #include <string>
 #include <unordered_map>
 
-// #include "openssl/digest.h"
-#include "openssl/hmac.h"
-#include "openssl/sha.h"
+#include "hmac_sha2.h"
+#include "sha2.h"
 
 #include "proxy_wasm_intrinsics.h"
 
@@ -16,6 +15,8 @@ public:
   // TimeSource
   SystemTime systemTime() { return getCurrentTimeNanoseconds(); }
 };
+
+using HeaderMap = std::vector<std::pair<std::string, std::string>>;
 
 
 typedef bool (*LowerCaseStringCompareFunc)(const std::string &,
@@ -31,9 +32,10 @@ public:
 
   void init(const std::string *access_key, const std::string *secret_key);
 
-  void updatePayloadHash(const uint8_t* data);
+  void updatePayloadHash(const std::string_view data);
 
-  void sign(std::unordered_map<std::string, std::string> *request_headers, const HeaderList &headers_to_sign,
+  void sign(const HeaderMap &request_headers,
+            const HeaderList &headers_to_sign,
             const std::string &region);
 
   /**
@@ -42,11 +44,9 @@ public:
   static HeaderList
   createHeaderToSign(std::initializer_list<std::string> headers);
 
-  std::string findQueryStringStart(const std::string& path);
-
 private:
 
-  std::string signWithTime(std::unordered_map<std::string, std::string> *request_headers,
+  std::string signWithTime(const HeaderMap& request_headers,
                            const HeaderList &headers_to_sign,
                            const std::string &region, SystemTime now);
 
@@ -57,7 +57,7 @@ private:
 
   std::string getBodyHexSha();
   void fetchUrl();
-  std::string computeCanonicalRequestHash(const std::string &request_method,
+  std::string computeCanonicalRequestHash(std::string_view request_method,
                                           const std::string &canonical_Headers,
                                           const std::string &signed_headers,
                                           const std::string &hexpayload);
@@ -72,13 +72,14 @@ private:
                                const std::string &hashed_canonical_request);
 
   static bool lowercasecompare(const std::string &i,
-                               std::string &j);
+                               const std::string &j);
 
   class Sha256 {
   public:
-    static const int LENGTH = SHA256_DIGEST_LENGTH;
+    static constexpr int LENGTH = SHA256_DIGEST_SIZE;
     Sha256();
     void update(const std::string &data);
+    void update(const std::string_view data);
 
     void update(char c);
     void update(const uint8_t *bytes, size_t size);
@@ -86,7 +87,7 @@ private:
     void finalize(uint8_t *out);
 
   private:
-    SHA256_CTX context_;
+    sha256_ctx context_;
   };
 
   class HMACSha256 {
@@ -97,13 +98,13 @@ private:
     void init(const std::string &data);
     void init(const uint8_t *bytes, size_t size);
     void update(const std::string &data);
+    void update(std::string_view data);
     void update(std::initializer_list<const std::string *> strings);
     void update(const uint8_t *bytes, size_t size);
     void finalize(uint8_t *out, unsigned int *out_len);
 
   private:
-    HMAC_CTX *context_;
-    const EVP_MD *evp_;
+    hmac_sha256_ctx context_;
     bool firstinit{true};
   };
 
@@ -117,13 +118,13 @@ private:
 
   Sha256 body_sha_;
 
-  TimeSource &time_source_;
+  TimeSource time_source_;
   const std::string *access_key_{};
   std::string first_key_;
-  const std::string *service_{};
-  const std::string *method_{};
-  std::string query_string_;
-  std::string url_base;
+  std::string_view service_{};
+  std::string_view method_{};
+  std::string_view query_string_{};
+  std::string_view url_base_{};
 
-  std::unordered_map<std::string, std::string> request_headers_;
+  const HeaderMap* request_headers_;
 };

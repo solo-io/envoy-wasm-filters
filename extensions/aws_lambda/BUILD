@@ -38,6 +38,6 @@ cc_library(
     ],
     deps = [
         "@envoy_wasm_api//:proxy_wasm_intrinsics",
-        "@openssl//:ssl",
+        "@hmac//:hmac_lib",
     ],
 )
