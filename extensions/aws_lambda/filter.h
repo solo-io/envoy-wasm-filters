@@ -30,15 +30,12 @@ public:
   FilterDataStatus onRequestBody(size_t body_buffer_length, bool end_of_stream) override;
   FilterTrailersStatus onRequestTrailers(uint32_t) override;
 
-  void onDone() override;
-  void onLog() override;
-  void onDelete() override;
-
   const std::string &path() const { return path_; }
   bool async() const { return async_; }
-  const std::string &defaultBody() const { return default_body_; }
 private:
 
+  static const HeaderList HeadersToSign;
+  
   AwsLambdaFilterRootContext* root_;
 
   std::string path_;

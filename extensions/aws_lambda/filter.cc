@@ -11,12 +11,20 @@ public:
   static constexpr std::string_view InvocationTypeRequestResponse{"RequestResponse"};
   static constexpr std::string_view LogType{"x-amz-log-type"};
   static constexpr std::string_view LogNone{"None"};
-  static constexpr std::string_view HostHead{"x-amz-log-type"};
+  
+  static constexpr std::string_view Host{"host"};
+  static constexpr std::string_view ContentType{"content-type"};
 };
+
+const HeaderList AwsLambdaFilterContext::HeadersToSign =
+    AwsAuthenticator::createHeaderToSign(
+        {std::string(AWSLambdaHeaderValues::InvocationType),
+         std::string(AWSLambdaHeaderValues::LogType), std::string(AWSLambdaHeaderValues::Host),
+         std::string(AWSLambdaHeaderValues::ContentType)});
 
 static RegisterContextFactory register_AwsLambdaFilterContext(CONTEXT_FACTORY(AwsLambdaFilterContext),
                                                       ROOT_FACTORY(AwsLambdaFilterRootContext),
-                                                      "add_header_root_id");
+                                                      "aws_lambda_root_id");
 
 bool AwsLambdaFilterRootContext::onConfigure(size_t) {
   auto conf = getConfiguration();
@@ -37,27 +45,32 @@ bool AwsLambdaFilterRootContext::onStart(size_t) { LOG_DEBUG("onStart"); return 
 void AwsLambdaFilterContext::onCreate() { LOG_DEBUG(std::string("onCreate " + std::to_string(id()))); }
 
 FilterHeadersStatus AwsLambdaFilterContext::onRequestHeaders(uint32_t) {
+  // heuristic till end_stream is exposed in envoy-wasm
+  auto method = getRequestHeader(":method");
+  bool end_stream = (method->view() == "GET");
   LOG_DEBUG(std::string("onRequestHeaders ") + std::to_string(id()));
-  lambdafy();
-  return FilterHeadersStatus::Continue;
+  if (end_stream) {
+    lambdafy();
+    return FilterHeadersStatus::Continue;
+  }
+  return FilterHeadersStatus::StopIteration;
 }
 
-FilterDataStatus AwsLambdaFilterContext::onRequestBody(size_t body_buffer_length, bool end_of_stream) {
-  return FilterDataStatus::Continue;
+FilterDataStatus AwsLambdaFilterContext::onRequestBody(size_t body_buffer_length, bool end_stream) {
+  if (end_stream) {
+    auto body = getBufferBytes(BufferType::HttpRequestBody, 0, body_buffer_length);
+    aws_authenticator_.updatePayloadHash(body->view());
+    lambdafy();
+    return FilterDataStatus::Continue;
+  }
+  return FilterDataStatus::StopIterationAndBuffer;
 }
 
 FilterTrailersStatus AwsLambdaFilterContext::onRequestTrailers(uint32_t) {
-  LOG_DEBUG(std::string("onRequestHeaders ") + std::to_string(id()));
   lambdafy();
   return FilterTrailersStatus::Continue;
 }
 
-
-void AwsLambdaFilterContext::onDone() { LOG_DEBUG(std::string("onDone " + std::to_string(id()))); }
-
-void AwsLambdaFilterContext::onLog() { LOG_DEBUG(std::string("onLog " + std::to_string(id()))); }
-
-void AwsLambdaFilterContext::onDelete() { LOG_DEBUG(std::string("onDelete " + std::to_string(id()))); }
 
 std::string
 AwsLambdaFilterContext::functionUrlPath(const std::string &name,
@@ -79,13 +92,6 @@ void AwsLambdaFilterContext::lambdafy() {
   addRequestHeader(AWSLambdaHeaderValues::LogType,
                                  AWSLambdaHeaderValues::LogNone);
   // replaceRequestHeader(":authority", protocol_options_->host());
-HeaderList HeadersToSign; // TODO
   aws_authenticator_.sign(*request_headers_, HeadersToSign ,
-                          "us-east-1"); // TODO
-  cleanup();
-}
-
-void AwsLambdaFilterContext::cleanup() {
-  request_headers_ = nullptr;
-  // protocol_options_.reset();
+                          "us-east-1"); // TODO 
 }

@@ -34,6 +34,7 @@ cc_library(
     name = "aws_authenticator_lib",
     srcs = [
         "aws_authenticator.cc",
+        "gmtime.cc",
         "aws_authenticator.h"
     ],
     deps = [
