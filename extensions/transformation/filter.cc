@@ -25,10 +25,21 @@ bool TransformationRootContext::onConfigure(size_t) {
   options.case_insensitive_enum_parsing = true;
   options.ignore_unknown_fields = false;
 
-  const auto strict_status = google::protobuf::util::JsonStringToMessage(conf->toString(), &config, options);
+  if (!conf) {
+    LOG_INFO("received null config - filter will be disabled");
+    return true;
+  }
+
+  if (conf->data() == nullptr) {
+    LOG_INFO("received null config data - filter will be disabled");
+    return true;
+  }
+
+  std::string confStr = conf->toString();
+
+  const auto strict_status = google::protobuf::util::JsonStringToMessage(confStr, &config, options);
     if (!strict_status.ok()) {
-      LOG_ERROR("failed parsing config:" + strict_status.ToString());
-    // Success, no need to do any extra work.
+    LOG_ERROR("failed parsing config:" + confStr + "\n error:" + strict_status.ToString());
     return false;
   }
 
@@ -55,6 +66,10 @@ FilterHeadersStatus TransformationContext::onRequestHeaders(uint32_t) {
 
   auto result = getRequestHeaderPairs();
   auto pairs = result->pairs();
+
+  if (!root_->transformation_config_) {
+    return FilterHeadersStatus::Continue;
+  }
   
   transformation_ = root_->transformation_config_->getRouteTransformation(pairs);
   if (!transformation_) {
